@@ -97,7 +97,7 @@ export const Cart: React.FC<CartProps> = ({ items, user, onRemoveItem, onClose, 
                                             <h3 className="font-bold text-gray-900 text-sm truncate">{item.title}</h3>
                                             <p className="text-gray-500 text-xs mb-1">{item.companyName}</p>
                                             <p className="text-teal-600 font-bold text-sm">
-                                                {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(item.price)}
+                                                {item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                             </p>
                                         </div>
                                         <button 
@@ -114,7 +114,7 @@ export const Cart: React.FC<CartProps> = ({ items, user, onRemoveItem, onClose, 
                             <div className="flex justify-between items-center mb-6">
                                 <span className="text-gray-500 font-medium">Total a pagar</span>
                                 <span className="text-2xl font-black text-gray-900">
-                                    {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(total)}
+                                    {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                 </span>
                             </div>
                             <Button 
@@ -207,7 +207,7 @@ export const Cart: React.FC<CartProps> = ({ items, user, onRemoveItem, onClose, 
                                     <div className="flex justify-between items-center w-full">
                                         <span>Pagar</span>
                                         <span className="bg-indigo-800/50 px-3 py-1 rounded-lg text-sm">
-                                            {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(total)}
+                                            {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                         </span>
                                     </div>
                                 )}

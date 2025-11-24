@@ -114,7 +114,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ user, products, onSele
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{product.companyName}</p>
                                 <div className="flex items-center justify-between">
                                     <span className="font-bold text-teal-600 dark:text-teal-400 text-sm">
-                                        {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(product.price)}
+                                        {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                     </span>
                                 </div>
                             </button>

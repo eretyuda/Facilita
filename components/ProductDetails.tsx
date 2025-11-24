@@ -1,7 +1,10 @@
+
+
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { ArrowLeft, Share2, Heart, CheckCircle2, ShieldCheck, Truck, Star, MessageCircle, Phone, ShoppingCart, Plus, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Share2, Heart, CheckCircle2, ShieldCheck, Truck, Star, MessageCircle, Phone, ShoppingCart, Plus, Image as ImageIcon, Send, X } from 'lucide-react';
 import { Button } from './Button';
+import { Toast, ToastType } from './Toast';
 
 interface ProductDetailsProps {
   product: Product;
@@ -11,6 +14,7 @@ interface ProductDetailsProps {
   onOpenCart: () => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  onSendMessage?: (content: string) => void;
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ 
@@ -20,11 +24,21 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   cartItemCount, 
   onOpenCart,
   isFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  onSendMessage
 }) => {
   const isService = product.category === 'Serviço';
   const [activeImage, setActiveImage] = useState(product.image);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [showMsgModal, setShowMsgModal] = useState(false);
+  const [msgContent, setMsgContent] = useState('');
+  
+  // Toast State for actions
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
+      show: false,
+      message: '',
+      type: 'success'
+  });
 
   const handleShare = async () => {
     const shareData = {
@@ -47,12 +61,64 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
     }
   };
 
+  const handleAddToCart = () => {
+      onAddToCart(product);
+      setToast({ show: true, message: 'Produto adicionado ao carrinho!', type: 'success' });
+  };
+
+  const handleSendInternalMessage = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!msgContent.trim()) return;
+      
+      if (onSendMessage) {
+          onSendMessage(msgContent);
+          setToast({ show: true, message: 'Mensagem enviada com sucesso!', type: 'success' });
+          setMsgContent('');
+          setShowMsgModal(false);
+      }
+  };
+
   return (
     <div className="h-full bg-white dark:bg-gray-900 overflow-y-auto pb-20 relative animate-[fadeIn_0.3s_ease-out] transition-colors duration-300">
+      {/* Toast Notification */}
+      <Toast 
+          isVisible={toast.show} 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+      />
+
       {/* Share Toast */}
       {showShareToast && (
           <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full text-sm z-50 animate-[fadeIn_0.2s_ease-out]">
             Link copiado!
+          </div>
+      )}
+
+      {/* Message Modal for Services */}
+      {showMsgModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-[scaleIn_0.2s_ease-out]">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-lg text-gray-900 dark:text-white">Contactar Empresa</h3>
+                      <button onClick={() => setShowMsgModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                          <X size={20} className="text-gray-500 dark:text-gray-400" />
+                      </button>
+                  </div>
+                  <form onSubmit={handleSendInternalMessage}>
+                      <textarea 
+                          value={msgContent}
+                          onChange={(e) => setMsgContent(e.target.value)}
+                          placeholder="Olá, gostaria de saber mais sobre este serviço..."
+                          className="w-full h-32 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 outline-none text-gray-900 dark:text-white resize-none mb-4"
+                          autoFocus
+                      />
+                      <Button fullWidth type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                          <Send size={18} className="mr-2" />
+                          Enviar Mensagem
+                      </Button>
+                  </form>
+              </div>
           </div>
       )}
 
@@ -133,7 +199,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Preço total</p>
             <div className="flex items-end gap-2">
                 <span className="text-3xl font-black text-teal-600 dark:text-teal-400">
-                    {product.price === 0 ? 'Sob Consulta' : new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(product.price)}
+                    {product.price === 0 ? 'Sob Consulta' : `${product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`}
                 </span>
                 {product.isPromoted && <span className="text-sm text-indigo-700 dark:text-indigo-300 font-bold mb-1.5 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-md">Oferta Especial</span>}
             </div>
@@ -209,23 +275,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                 <Button 
                     variant="outline" 
                     className="w-16 p-0 flex items-center justify-center border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800" 
-                    onClick={() => window.open('tel:+244923456789')}
-                    title="Ligar"
+                    onClick={() => window.open(`https://wa.me/244923456789?text=Olá, tenho interesse no serviço: ${product.title}`)}
+                    title="WhatsApp"
                 >
-                    <Phone size={24} />
+                    <MessageCircle size={24} className="text-green-600" />
                 </Button>
                 <Button 
-                    className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white shadow-green-200 border-none" 
-                    onClick={() => window.open(`https://wa.me/244923456789?text=Olá, tenho interesse no serviço: ${product.title}`)}
+                    className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200 border-none" 
+                    onClick={() => setShowMsgModal(true)}
                 >
-                    <MessageCircle size={20} />
-                    Solicitar no WhatsApp
+                    <Send size={20} />
+                    Mensagem Interna
                 </Button>
             </>
         ) : (
             <>
                 <button 
-                    onClick={() => onAddToCart(product)}
+                    onClick={handleAddToCart}
                     className="px-4 rounded-xl border-2 border-indigo-600 dark:border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors active:scale-95 flex flex-col items-center justify-center h-full min-h-[52px]"
                     aria-label="Adicionar ao Carrinho"
                 >
@@ -237,8 +303,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                     variant="primary" 
                     className="shadow-indigo-600/30 flex-1 h-full min-h-[52px] dark:bg-indigo-600 dark:hover:bg-indigo-700"
                     onClick={() => {
-                        onAddToCart(product);
-                        onOpenCart();
+                        handleAddToCart();
+                        // Optional: Open cart automatically if preferred, but adding to cart + toast is usually better ux
+                        // onOpenCart(); 
                     }}
                 >
                     <ShoppingCart size={20} className="mr-1" />

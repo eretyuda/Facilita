@@ -113,3 +113,16 @@ export interface Transaction {
   status: 'Pendente' | 'Aprovado' | 'Rejeitado';
   method: 'Multicaixa' | 'Visa';
 }
+
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string; // Company ownerId or User ID
+  productId?: string;
+  productName?: string;
+  content: string;
+  timestamp: number;
+  isRead: boolean;
+  isFromBusiness: boolean; // True if it's a reply from the company
+}

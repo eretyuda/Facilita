@@ -136,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, banks, otherComp
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">{product.companyName}</p>
                                             </div>
                                             <span className="text-teal-600 dark:text-teal-400 font-bold text-xs whitespace-nowrap">
-                                                {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(product.price)}
+                                                {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                             </span>
                                         </button>
                                     ))}
@@ -258,7 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ products, banks, otherComp
                                 </h2>
                                 {product.price > 0 && (
                                     <p className="text-teal-300 text-sm md:text-base font-bold tracking-wide">
-                                        {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(product.price)}
+                                        {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                     </p>
                                 )}
                                 <button 

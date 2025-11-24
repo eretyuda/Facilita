@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User, Transaction, PlanType } from '../types';
 import { User as UserIcon, Building2, CreditCard, BarChart2, CheckCircle, XCircle, Search, MoreVertical, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
@@ -130,7 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onUpdateU
                                     </div>
                                     <p className="text-gray-500 text-sm font-medium">Receita Mensal (MRR)</p>
                                     <h3 className="text-3xl font-bold text-gray-900 mt-1">
-                                        {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(mrr)}
+                                        {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                     </h3>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
@@ -168,7 +167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onUpdateU
                                             <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} tickFormatter={(value) => `${value/1000}k`} />
                                             <Tooltip 
                                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
-                                                formatter={(value: number) => new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(value)}
+                                                formatter={(value: number) => `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`}
                                             />
                                             <Area type="monotone" dataKey="value" stroke="#4F46E5" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                                         </AreaChart>
@@ -282,7 +281,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ users, onUpdateU
                                             <td className="px-6 py-4 font-bold text-gray-900 text-sm">{t.user}</td>
                                             <td className="px-6 py-4 text-sm text-gray-600">{t.plan}</td>
                                             <td className="px-6 py-4 font-mono text-sm text-gray-900">
-                                                {new Intl.NumberFormat('pt-AO', { style: 'currency', currency: 'AOA' }).format(t.amount)}
+                                                {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz
                                             </td>
                                             <td className="px-6 py-4 text-sm text-gray-500">{t.method}</td>
                                             <td className="px-6 py-4">

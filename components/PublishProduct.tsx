@@ -4,6 +4,7 @@ import { ArrowLeft, Upload, DollarSign, Tag, FileText, Type, X, Image as ImageIc
 import { Product, User, PlanType, Bank } from '../types';
 import { PLANS } from '../constants';
 import { processImage } from '../utils/imageOptimizer';
+import { Toast, ToastType } from './Toast';
 
 interface PublishProductProps {
     user: User;
@@ -32,6 +33,17 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
 
     // Processing State
     const [isProcessingImage, setIsProcessingImage] = useState(false);
+    
+    // Toast State
+    const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
+        show: false,
+        message: '',
+        type: 'success'
+    });
+
+    const showToast = (message: string, type: ToastType = 'success') => {
+        setToast({ show: true, message, type });
+    };
 
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,28 +51,36 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
     const userPlanType = user.plan || PlanType.BASIC;
     const planDetails = PLANS.find(p => p.type === userPlanType) || PLANS[0];
     
-    // Determine scope for limits (if overriding, check that owner's products, else user's)
-    const targetOwnerId = selectedBranchId || user.id; // Use selected branch or User ID
-    const targetName = selectedBranchId 
-        ? branches.find(b => b.id === selectedBranchId)?.name || user.name 
-        : user.name;
-
-    const myProducts = products.filter(p => p.ownerId === targetOwnerId || p.companyName === targetName);
+    // 1. Calculate Account-Wide Usage (HQ + All Branches)
+    // Limits apply to the Account Holder (User), regardless of which entity publishes.
+    const accountIds = [user.id, ...branches.map(b => b.id)];
+    const accountNames = [user.name, ...branches.map(b => b.name)];
     
-    // Count highlights (excluding current product if editing)
-    const currentHighlights = myProducts.filter(p => p.isPromoted && (initialData ? p.id !== initialData.id : true)).length;
-    // Use custom limits if available (from upgrade rollover), otherwise plan defaults
+    // Robust filtering to catch all products owned by user or any of their branches
+    const allAccountProducts = products.filter(p => {
+        // Product owned by User OR any branch owned by User
+        const isOwnerMatch = accountIds.includes(p.ownerId || '');
+        // Fallback: Legacy check by company name
+        const isNameMatch = accountNames.includes(p.companyName);
+        
+        return isOwnerMatch || isNameMatch;
+    });
+
+    // 2. Count Highlights (Global Account Level)
+    const currentHighlights = allAccountProducts.filter(p => p.isPromoted && (initialData ? p.id !== initialData.id : true)).length;
+    // Use custom limits if available, otherwise plan defaults
     const maxHighlights = user.customLimits?.maxHighlights ?? planDetails.maxHighlights;
     const canPromote = maxHighlights === -1 || currentHighlights < maxHighlights;
 
-    // Product Count for Limit Validation
-    const currentProductsCount = myProducts.length;
+    // 3. Count Products (Global Account Level)
+    const currentProductsCount = allAccountProducts.length;
     const maxProducts = user.customLimits?.maxProducts ?? planDetails.maxProducts;
 
     useEffect(() => {
         if (initialData) {
             setTitle(initialData.title);
-            setPrice(initialData.price.toString());
+            // Format existing price: 5000 -> "5.000,00"
+            setPrice(initialData.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
             setCategory(initialData.category);
             setDescription(initialData.description || '');
             setImage(initialData.image);
@@ -87,8 +107,9 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                 setIsProcessingImage(true);
                 const { optimized } = await processImage(file);
                 setImage(optimized);
+                showToast("Imagem de capa carregada!", 'success');
             } catch (error) {
-                alert(error instanceof Error ? error.message : "Erro ao processar imagem.");
+                showToast(error instanceof Error ? error.message : "Erro ao processar imagem.", 'error');
             } finally {
                 setIsProcessingImage(false);
             }
@@ -107,8 +128,9 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                     })
                 );
                 setGallery(prev => [...prev, ...processedImages]);
+                showToast(`${processedImages.length} fotos adicionadas à galeria!`, 'success');
             } catch (error) {
-                alert(error instanceof Error ? error.message : "Erro ao processar galeria.");
+                showToast(error instanceof Error ? error.message : "Erro ao processar galeria.", 'error');
             } finally {
                 setIsProcessingImage(false);
             }
@@ -121,22 +143,43 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
         setGallery(newGallery);
     };
 
+    // Format currency input: 1234 -> 12,34 -> 1.234,56
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Remove everything that is not a digit
+        let value = e.target.value.replace(/\D/g, '');
+        
+        if (value === '') {
+            setPrice('');
+            return;
+        }
+
+        // Parse as integer and divide by 100 to get decimals
+        const numberValue = parseInt(value, 10) / 100;
+        
+        // Format to "pt-BR" style (dots for thousands, comma for decimal)
+        const formatted = numberValue.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        setPrice(formatted);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // 1. Check Product Limits (If creating new)
+        // 1. Check Global Product Limits (If creating new)
         if (!initialData) {
             if (maxProducts !== -1 && currentProductsCount >= maxProducts) {
-                alert(`Você atingiu o limite de ${maxProducts} publicações do seu plano. Atualize para o plano Profissional ou Premium para publicar mais.`);
+                showToast(`Limite global de ${maxProducts} publicações atingido. Atualize seu plano.`, 'error');
                 return;
             }
         }
 
-        // 2. Check Highlight Limits (If promoting)
-        // Check if user is trying to promote, AND if the product wasn't already promoted before
+        // 2. Check Global Highlight Limits (If promoting)
         if (isPromoted && (!initialData || !initialData.isPromoted)) {
              if (maxHighlights !== -1 && currentHighlights >= maxHighlights) {
-                 alert(`Você atingiu o limite de ${maxHighlights} destaques do seu plano. Remova um destaque antigo ou atualize seu plano.`);
+                 showToast(`Limite global de ${maxHighlights} destaques atingido.`, 'error');
                  return;
              }
         }
@@ -147,10 +190,14 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
             ? branches.find(b => b.id === selectedBranchId)?.name || user.name 
             : user.name;
 
+        // Convert formatted string "1.234,56" back to number 1234.56
+        const rawPriceString = price.replace(/\./g, '').replace(',', '.');
+        const finalPriceValue = parseFloat(rawPriceString) || 0;
+
         const newProduct: Product = {
             id: initialData ? initialData.id : Date.now().toString(),
             title,
-            price: Number(price),
+            price: finalPriceValue,
             image: image || 'https://picsum.photos/400/400', // Fallback image if nothing uploaded
             gallery,
             companyName: finalCompanyName,
@@ -162,12 +209,17 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
             bankId: user.isBank ? (user.id) : undefined 
         };
 
-        alert(initialData ? 'Produto atualizado com sucesso!' : 'Produto publicado com sucesso!');
-        onSave(newProduct);
+        // Notify and save
+        showToast(initialData ? 'Produto atualizado com sucesso!' : 'Produto publicado com sucesso!', 'success');
+        
+        // Delay closing slightly to show the toast, but ensure good UX
+        setTimeout(() => {
+            onSave(newProduct);
+        }, 800);
     };
 
     return (
-        <div className="h-full bg-gray-50 dark:bg-gray-900 overflow-y-auto pb-20 animate-[slideUp_0.3s_ease-out]">
+        <div className="h-full bg-gray-50 dark:bg-gray-900 overflow-y-auto pb-20 animate-[slideUp_0.3s_ease-out] relative">
             <div className="bg-white dark:bg-gray-800 px-6 pt-6 pb-4 shadow-sm sticky top-0 z-10 border-b border-gray-100 dark:border-gray-700">
                 <div className="flex items-center gap-4 mb-2">
                     <button onClick={onBack} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
@@ -215,7 +267,7 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                         </div>
                         <p className="text-[10px] text-indigo-700 dark:text-indigo-400 mt-2 px-1">
                             {selectedBranchId 
-                                ? "O produto será exibido como pertencente a esta agência." 
+                                ? "O produto será exibido como pertencente a esta agência. O uso contará para o limite global da conta." 
                                 : "O produto será vinculado à conta principal da empresa."}
                         </p>
                     </div>
@@ -325,11 +377,12 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                         <div className="flex items-center px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus-within:border-indigo-500 transition-all">
                             <DollarSign size={20} className="text-gray-400 mr-2" />
                             <input 
-                                type="number" 
+                                type="text"
+                                inputMode="numeric"
                                 required
                                 value={price}
-                                onChange={(e) => setPrice(e.target.value)}
-                                placeholder="0.00"
+                                onChange={handlePriceChange}
+                                placeholder="0,00"
                                 className="w-full bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400"
                             />
                         </div>
@@ -394,6 +447,13 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                     </Button>
                 </div>
             </form>
+            
+            <Toast 
+                isVisible={toast.show} 
+                message={toast.message} 
+                type={toast.type} 
+                onClose={() => setToast(prev => ({ ...prev, show: false }))} 
+            />
         </div>
     );
 };

@@ -19,12 +19,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [name, setName] = useState('Avelino Nicolau');
   const [phone, setPhone] = useState('+244 943 446 390');
   const [nif, setNif] = useState('');
+  const [nifError, setNifError] = useState('');
 
   const handleSubmit = () => {
     // Validation for NIF if business
-    if (isSignUp && isBusiness && nif.length !== 10) {
-        alert("O NIF deve ter exatamente 10 dígitos numéricos.");
-        return;
+    if (isSignUp && isBusiness) {
+        if (nif.length !== 10) {
+            setNifError(`O NIF deve ter exatamente 10 dígitos. Faltam ${10 - nif.length}.`);
+            return;
+        }
     }
 
     // Simulating login/register
@@ -109,16 +112,36 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             onChange={(e) => {
                                 const val = e.target.value.replace(/\D/g, ''); // Only numbers
                                 setNif(val);
+                                setNifError(''); // Clear error on type
                             }}
-                            className="w-full pl-10 pr-4 py-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:border-indigo-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white font-medium placeholder-gray-400 shadow-sm"
+                            className={`w-full pl-10 pr-4 py-3.5 bg-white dark:bg-gray-800 border ${nifError ? 'border-red-500 animate-pulse' : 'border-gray-200 dark:border-gray-700'} focus:border-indigo-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white font-medium placeholder-gray-400 shadow-sm`}
                             placeholder="NIF (10 dígitos)"
                             required
                             inputMode="numeric"
                             autoComplete="off"
                             />
                             <FileText size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            {nif.length === 10 && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 pointer-events-none animate-in fade-in zoom-in duration-200">
+                                    <Check size={18} />
+                                </div>
+                            )}
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1 pl-1">Apenas números (10 dígitos).</p>
+                        <div className="flex justify-between items-center mt-1 pl-1">
+                            <p className={`text-[10px] transition-colors ${nifError ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                                {nifError || 'Apenas números.'}
+                            </p>
+                            <div className="flex flex-col items-end">
+                                <p className={`text-[10px] font-bold transition-colors ${nif.length === 0 ? 'text-gray-400' : nif.length < 10 ? 'text-orange-500' : 'text-green-500'}`}>
+                                    {nif.length}/10
+                                </p>
+                            </div>
+                        </div>
+                        {nif.length > 0 && nif.length < 10 && (
+                             <p className="text-[10px] text-orange-500 pl-1 mt-0.5 text-right font-medium">
+                                Faltam {10 - nif.length} dígitos
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -171,7 +194,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <div className="flex gap-4 pt-2">
                     <button 
                         type="button"
-                        onClick={() => { setIsBusiness(false); setIsBank(false); setNif(''); }}
+                        onClick={() => { setIsBusiness(false); setIsBank(false); setNif(''); setNifError(''); }}
                         className={`flex-1 p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${!isBusiness ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500'}`}
                     >
                         <User size={24} />

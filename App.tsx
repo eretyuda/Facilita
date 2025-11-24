@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { Login } from './components/Login';
 import { MapView } from './components/MapView';
@@ -10,8 +12,8 @@ import { PublishProduct } from './components/PublishProduct';
 import { MyProducts } from './components/MyProducts';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Map, ShoppingBag, User, Home, Menu, X, Settings, HelpCircle, FileText, LogOut, ChevronRight, LayoutGrid } from 'lucide-react';
-import { User as UserType, Bank, Product, PlanType } from './types';
-import { MOCK_PRODUCTS, BANKS } from './constants';
+import { User as UserType, Bank, Product, PlanType, ATM, Message } from './types';
+import { MOCK_PRODUCTS, BANKS, MOCK_ATMS } from './constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserType | null>(null);
@@ -29,6 +31,14 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [banks, setBanks] = useState<Bank[]>(BANKS);
   const [otherCompanies, setOtherCompanies] = useState<Bank[]>([]);
+  const [atms, setAtms] = useState<ATM[]>(MOCK_ATMS);
+
+  // Messaging State
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  // User Votes State (To ensure 1 vote per ATM)
+  const [votedAtms, setVotedAtms] = useState<string[]>([]);
+
   // Mock Users for Admin
   const [allUsers, setAllUsers] = useState<UserType[]>([
       { id: 'u1', name: 'Maria Silva', email: 'maria@gmail.com', phone: '923000000', isBusiness: false },
@@ -191,6 +201,77 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSendMessage = (receiverId: string, content: string, productId?: string, productName?: string) => {
+      if (!user) return;
+      
+      const newMessage: Message = {
+          id: Date.now().toString(),
+          senderId: user.id,
+          senderName: user.name,
+          receiverId,
+          productId,
+          productName,
+          content,
+          timestamp: Date.now(),
+          isRead: false,
+          isFromBusiness: false // Initially sent by user (or business replying, handled in profile)
+      };
+
+      setMessages(prev => [newMessage, ...prev]);
+  };
+
+  // Function for business replying or user replying in chat
+  const handleReplyMessage = (originalMessage: Message, content: string) => {
+      if (!user) return;
+      
+      const newMessage: Message = {
+          id: Date.now().toString(),
+          senderId: user.id,
+          senderName: user.name,
+          receiverId: originalMessage.senderId === user.id ? originalMessage.receiverId : originalMessage.senderId,
+          productId: originalMessage.productId,
+          productName: originalMessage.productName,
+          content,
+          timestamp: Date.now(),
+          isRead: false,
+          isFromBusiness: user.isBusiness && user.id !== originalMessage.senderId // Simple check for business reply
+      };
+      
+      setMessages(prev => [newMessage, ...prev]);
+  };
+
+  const handleManageATM = (action: 'ADD' | 'UPDATE' | 'DELETE', atmData: Partial<ATM> & { id?: string }) => {
+      if (action === 'ADD' && atmData) {
+          setAtms(prev => [...prev, atmData as ATM]);
+      } else if (action === 'UPDATE' && atmData.id) {
+          setAtms(prev => prev.map(atm => atm.id === atmData.id ? { ...atm, ...atmData } : atm));
+      } else if (action === 'DELETE' && atmData.id) {
+          setAtms(prev => prev.filter(atm => atm.id !== atmData.id));
+      }
+  };
+
+  const handleValidateATM = (atmId: string) => {
+      const hasVoted = votedAtms.includes(atmId);
+      
+      // Update the ATM vote count
+      setAtms(prev => prev.map(atm => {
+          if (atm.id === atmId) {
+              const currentVotes = atm.votes || 0;
+              // If already voted, decrease count (remove vote). If not voted, increase count.
+              const newVotes = hasVoted ? Math.max(0, currentVotes - 1) : currentVotes + 1;
+              return { ...atm, votes: newVotes };
+          }
+          return atm;
+      }));
+
+      // Update user voted list
+      if (hasVoted) {
+          setVotedAtms(prev => prev.filter(id => id !== atmId));
+      } else {
+          setVotedAtms(prev => [...prev, atmId]);
+      }
+  };
+
   const handleAddBranch = (branchData: Partial<Bank>) => {
       if (!user) return;
       
@@ -237,10 +318,13 @@ const App: React.FC = () => {
   };
 
   const handleDeleteBranch = (branchId: string) => {
+      const deleteFromList = (prev: Bank[]) => prev.filter(b => b.id !== branchId);
+
+      // Optimistic update using functional state update
       if (user?.isBank) {
-          setBanks(prev => prev.filter(b => b.id !== branchId));
+          setBanks(deleteFromList);
       } else {
-          setOtherCompanies(prev => prev.filter(b => b.id !== branchId));
+          setOtherCompanies(deleteFromList);
       }
   };
 
@@ -399,9 +483,8 @@ const App: React.FC = () => {
   };
 
   const handleDeleteProduct = (productId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-        setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
-    }
+      // Direct delete, confirmation is handled in the UI component (MyProducts)
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
   };
 
   const openPublishModal = (productToEdit?: Product) => {
@@ -448,6 +531,7 @@ const App: React.FC = () => {
             <MyProducts 
                 user={user}
                 products={products}
+                branches={myBranches} // Pass branches so MyProducts knows what belongs to user
                 onBack={() => {
                     setShowMyProducts(false);
                 }}
@@ -470,6 +554,7 @@ const App: React.FC = () => {
                 onOpenCart={() => setIsCartOpen(true)}
                 isFavorite={user.favorites?.includes(selectedProduct.id) || false}
                 onToggleFavorite={() => toggleFavorite(selectedProduct.id)}
+                onSendMessage={(content) => handleSendMessage(selectedProduct.ownerId || '', content, selectedProduct.id, selectedProduct.title)}
             />
         );
     }
@@ -502,7 +587,13 @@ const App: React.FC = () => {
             />
         );
       case 'MAP':
-        return <MapView />;
+        return (
+            <MapView 
+                atms={atms} 
+                onValidateATM={handleValidateATM} 
+                votedAtms={votedAtms}
+            />
+        );
       case 'MARKET':
         return (
             <Marketplace 
@@ -544,6 +635,10 @@ const App: React.FC = () => {
                 onUpdateBranch={handleUpdateBranch}
                 onDeleteBranch={handleDeleteBranch}
                 onManageBranchProducts={openBranchProductManager}
+                atms={atms}
+                onManageATM={handleManageATM}
+                messages={messages}
+                onReplyMessage={handleReplyMessage}
             />
         );
       default:
