@@ -38,20 +38,12 @@ const App: React.FC = () => {
     // Banks / Companies (persistidos no Supabase)
     const { banks: allBanks, loading: banksLoading, addBank, updateBank, deleteBank, refreshBanks } = useSupabaseBanks();
 
-    // Derive banks and companies from Supabase data
-    // We filter based on the user type (isBank) found in allUsers
-    const banks = allBanks.filter(b => {
-        if (b.type === 'BRANCH') return false; // Branches are handled separately or inside parent
-        const owner = allUsers.find(u => u.id === b.id);
-        return owner?.isBank;
-    }).map(b => ({...b, isBank: true}));
+    // Filter banks directly based on the property loaded from the DB (isBank)
+    // This ensures we don't rely on the Users table being fully loaded to show banks
+    const banks = allBanks.filter(b => b.type !== 'BRANCH' && b.isBank);
 
-    const otherCompanies = allBanks.filter(b => {
-        if (b.type === 'BRANCH') return false;
-        const owner = allUsers.find(u => u.id === b.id);
-        // If owner exists and is NOT a bank, OR if owner not found (maybe manual entry?) but not explicitly a bank
-        return owner ? !owner.isBank : true;
-    }).map(b => ({...b, isBank: false}));
+    // Filter companies (everything else that isn't a branch and isn't a bank)
+    const otherCompanies = allBanks.filter(b => b.type !== 'BRANCH' && !b.isBank);
 
     // Force refresh data when user logs in to ensure new companies appear immediately
     useEffect(() => {
@@ -64,10 +56,9 @@ const App: React.FC = () => {
     // DEBUG: Monitor data flow
     useEffect(() => {
         console.log('DEBUG: allBanks:', allBanks);
-        console.log('DEBUG: allUsers:', allUsers);
         console.log('DEBUG: Filtered Banks:', banks);
         console.log('DEBUG: Filtered OtherCompanies:', otherCompanies);
-    }, [allBanks, allUsers, banks, otherCompanies]);
+    }, [allBanks, banks, otherCompanies]);
 
     const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
     const [paymentGateways, setPaymentGateways] = useState<PaymentGatewayConfig[]>([

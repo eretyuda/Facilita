@@ -14,7 +14,7 @@ async function run() {
 
     if (!user) {
       console.error('❌ Utilizador com esse email não existe no Supabase. Crie o utilizador primeiro ou verifique o schema.');
-      process.exit(1);
+      (process as any).exit(1);
     }
 
     console.log('✅ Utilizador encontrado:', { id: user.id, email: user.email, name: user.name });
@@ -38,7 +38,7 @@ async function run() {
     console.log('ID:', created.id);
     console.log('Title:', created.title);
     console.log('Owner ID:', created.owner_id);
-    process.exit(0);
+    (process as any).exit(0);
   } catch (error: any) {
     console.error('\n❌ Erro ao criar produto:');
     console.error(error?.message || error);
@@ -50,7 +50,7 @@ async function run() {
       console.error('\n🔴 PROBLEMA: Falha de autenticação/permissão. Verifique a chave em services/supabaseClient.ts ou as variáveis Vite (.env).');
     }
 
-    process.exit(2);
+    (process as any).exit(2);
   }
 }
 
