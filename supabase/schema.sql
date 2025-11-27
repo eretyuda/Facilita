@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS banks (
     province VARCHAR(100),
     municipality VARCHAR(100),
     parent_id UUID REFERENCES banks(id) ON DELETE CASCADE,
+    is_bank BOOLEAN DEFAULT FALSE,
     type VARCHAR(10) CHECK (type IN ('HQ', 'BRANCH')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -34,6 +34,7 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
 
     // Processing State
     const [isProcessingImage, setIsProcessingImage] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Toast State
     const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
@@ -166,7 +167,7 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
         setPrice(formatted);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // 1. Check Global Product Limits (If creating new)
@@ -210,8 +211,16 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
             bankId: user.isBank ? (user.id) : undefined
         };
 
-        // Save (App will handle success/errors and close the modal accordingly)
-        onSave(newProduct);
+        // Save with loading state
+        setIsSaving(true);
+        try {
+            await onSave(newProduct);
+            showToast(initialData ? 'Produto atualizado!' : 'Produto publicado!', 'success');
+        } catch (error: any) {
+            showToast(error.message || 'Erro ao salvar produto', 'error');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -438,8 +447,13 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                 </div>
 
                 <div className="pt-4">
-                    <Button type="submit" fullWidth className="h-14 text-lg shadow-xl shadow-indigo-200 dark:shadow-indigo-900/30" disabled={isProcessingImage}>
-                        {isProcessingImage ? 'Processando Imagens...' : (initialData ? 'Atualizar Publicação' : 'Publicar Agora')}
+                    <Button type="submit" fullWidth className="h-14 text-lg shadow-xl shadow-indigo-200 dark:shadow-indigo-900/30" disabled={isProcessingImage || isSaving}>
+                        {isSaving ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <Loader2 className="animate-spin" size={20} />
+                                <span>Salvando...</span>
+                            </div>
+                        ) : isProcessingImage ? 'Processando Imagens...' : (initialData ? 'Atualizar Publicação' : 'Publicar Agora')}
                     </Button>
                 </div>
             </form>

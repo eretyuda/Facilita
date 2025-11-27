@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { 
-    userService, 
-    productService, 
-    atmService, 
-    transactionService, 
-    messageService, 
-    bankService 
+import {
+    userService,
+    productService,
+    atmService,
+    transactionService,
+    messageService,
+    bankService
 } from '../services/databaseService';
 import { User, Product, ATM, Transaction, Message, Bank } from '../types';
 import { MOCK_PRODUCTS, MOCK_ATMS, BANKS } from '../constants';
@@ -119,7 +119,8 @@ export function useSupabaseProducts() {
                 isPromoted: p.is_promoted,
                 bankId: p.bank_id,
                 ownerId: p.owner_id,
-                description: p.description
+                description: p.description,
+                gallery: p.product_gallery ? p.product_gallery.map((g: any) => g.image_url) : []
             }));
             setProducts(mappedProducts);
         } catch (error: any) {
@@ -410,7 +411,7 @@ export function useSupabaseBanks() {
                 municipality: b.municipality,
                 parentId: b.parent_id,
                 type: b.type as any,
-                isBank: b.is_bank // Added isBank mapping
+                isBank: b.is_bank ?? false // Use database value, default to false if null
             }));
             setBanks(mappedBanks);
         } catch (error: any) {
@@ -469,7 +470,7 @@ export function useSupabaseBanks() {
             if (updates.province) dbUpdates.province = updates.province;
             if (updates.municipality) dbUpdates.municipality = updates.municipality;
             if (updates.isBank !== undefined) dbUpdates.is_bank = updates.isBank;
-            
+
             await bankService.updateBank(bankId, dbUpdates);
             await loadBanks();
         } catch (error: any) {

@@ -1,5 +1,3 @@
-
-
 import { ATM, ATMStatus, BankName, Product, Plan, PlanType, Bank } from './types';
 
 export const BANKS: Bank[] = [
@@ -16,7 +14,8 @@ export const BANKS: Bank[] = [
     nif: '5401234567',
     address: 'Av. Ho Chi Minh, Torres BAI',
     province: 'Luanda',
-    municipality: 'Luanda'
+    municipality: 'Luanda',
+    isBank: true
   },
   {
     id: 'bfa',
@@ -31,7 +30,8 @@ export const BANKS: Bank[] = [
     nif: '5409876543',
     address: 'Rua Amilcar Cabral, Nº 58',
     province: 'Luanda',
-    municipality: 'Ingombota'
+    municipality: 'Ingombota',
+    isBank: true
   },
   {
     id: 'bic',
@@ -45,7 +45,8 @@ export const BANKS: Bank[] = [
     email: 'geral@bancobic.ao',
     address: 'Edifício BIC, Talatona',
     province: 'Luanda',
-    municipality: 'Talatona'
+    municipality: 'Talatona',
+    isBank: true
   },
   {
     id: 'sol',
@@ -54,7 +55,8 @@ export const BANKS: Bank[] = [
     coverImage: 'https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=1000&q=80',
     description: 'O banco de todos nós.',
     followers: 3200,
-    reviews: 95
+    reviews: 95,
+    isBank: true
   },
   {
     id: 'atl',
@@ -63,7 +65,8 @@ export const BANKS: Bank[] = [
     coverImage: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1000&q=80',
     description: 'Valores que contam.',
     followers: 8400,
-    reviews: 210
+    reviews: 210,
+    isBank: true
   }
 ];
 
@@ -266,9 +269,9 @@ export const PLANS: Plan[] = [
 ];
 
 export const ANGOLA_PROVINCES = [
-  "Bengo", "Benguela", "Bié", "Cabinda", "Cuando Cubango", 
-  "Cuanza Norte", "Cuanza Sul", "Cunene", "Huambo", "Huíla", 
-  "Luanda", "Lunda Norte", "Lunda Sul", "Malanje", "Moxico", 
+  "Bengo", "Benguela", "Bié", "Cabinda", "Cuando Cubango",
+  "Cuanza Norte", "Cuanza Sul", "Cunene", "Huambo", "Huíla",
+  "Luanda", "Lunda Norte", "Lunda Sul", "Malanje", "Moxico",
   "Namibe", "Uíge", "Zaire"
 ];
 

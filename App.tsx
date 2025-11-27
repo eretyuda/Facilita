@@ -106,7 +106,7 @@ const App: React.FC = () => {
         }
     }, [isDarkMode]);
 
-    const handleLogin = (loggedInUser: UserType) => {
+    const handleLogin = async (loggedInUser: UserType) => {
         const userExists = allUsers.find(u => u.email === loggedInUser.email);
         let currentUser = loggedInUser;
 
@@ -147,7 +147,9 @@ const App: React.FC = () => {
 
             // Persist company profile to Supabase if not already present
             if (!allBanks.find(b => b.name === userWithFavs.name)) {
-                addBank(companyProfile);
+                await addBank(companyProfile);
+                // Force immediate refresh to show on home page
+                await refreshBanks();
             }
         }
 
@@ -160,7 +162,7 @@ const App: React.FC = () => {
         setProfileInitialView('MAIN');
     };
 
-    const handleUpgradeToBusiness = (details: { name: string; phone: string; isBank: boolean; nif: string, plan: PlanType }) => {
+    const handleUpgradeToBusiness = async (details: { name: string; phone: string; isBank: boolean; nif: string, plan: PlanType }) => {
         if (!user) return;
         const updatedUser: UserType = { ...user, name: details.name, phone: details.phone, isBusiness: true, isBank: details.isBank, nif: details.nif, plan: details.plan };
         setUser(updatedUser);
@@ -169,7 +171,9 @@ const App: React.FC = () => {
         const companyProfile: Bank = { id: updatedUser.id, name: details.name, logo: user.profileImage || '', coverImage: user.coverImage || 'https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=1000&q=80', description: '', followers: 0, reviews: 0, phone: details.phone, nif: details.nif, email: user.email, address: user.address, province: user.province, municipality: user.municipality, type: 'HQ', isBank: details.isBank };
 
         // Persist company profile to Supabase
-        addBank(companyProfile);
+        await addBank(companyProfile);
+        // Force immediate refresh to show on home page
+        await refreshBanks();
     };
 
     const handleUpdateUser = (updatedUser: UserType) => {

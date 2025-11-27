@@ -161,7 +161,7 @@ export const productService = {
   async getAllProducts() {
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, product_gallery(image_url)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -172,7 +172,7 @@ export const productService = {
   async getProductsByOwner(ownerId: string) {
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, product_gallery(image_url)')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false });
 
@@ -182,6 +182,7 @@ export const productService = {
 
   // Create product (Upsert to allow overwrites/fixes)
   async createProduct(product: Partial<Product>) {
+    // 1. Create the product first
     const { data, error } = await supabase
       .from('products')
       .upsert([{
@@ -199,12 +200,35 @@ export const productService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating product:', error);
+      throw new Error(`Falha ao criar produto: ${error.message || 'Erro desconhecido'}`);
+    }
+
+    // 2. Handle Gallery Images (optimized - single batch insert)
+    if (product.gallery && product.gallery.length > 0) {
+      const galleryInserts = product.gallery.map((url, index) => ({
+        product_id: data.id,
+        image_url: url,
+        display_order: index
+      }));
+
+      const { error: galleryError } = await supabase
+        .from('product_gallery')
+        .insert(galleryInserts);
+
+      if (galleryError) {
+        console.error('Error saving gallery:', galleryError);
+        // Don't throw - gallery is optional, product is already created
+      }
+    }
+
     return data;
   },
 
   // Update product
   async updateProduct(productId: string, updates: Partial<Product>) {
+    // 1. Update the main product fields
     const { data, error } = await supabase
       .from('products')
       .update({
@@ -218,7 +242,42 @@ export const productService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating product:', error);
+      throw new Error(`Falha ao atualizar produto: ${error.message || 'Erro desconhecido'}`);
+    }
+
+    // 2. Handle Gallery Updates (optimized - batch delete + batch insert)
+    if (updates.gallery !== undefined) {
+      // Delete existing gallery images
+      const { error: deleteError } = await supabase
+        .from('product_gallery')
+        .delete()
+        .eq('product_id', productId);
+
+      if (deleteError) {
+        console.error('Error deleting old gallery:', deleteError);
+      }
+
+      // Insert new ones if any
+      if (updates.gallery.length > 0) {
+        const galleryInserts = updates.gallery.map((url, index) => ({
+          product_id: productId,
+          image_url: url,
+          display_order: index
+        }));
+
+        const { error: galleryError } = await supabase
+          .from('product_gallery')
+          .insert(galleryInserts);
+
+        if (galleryError) {
+          console.error('Error updating gallery:', galleryError);
+          // Don't throw - gallery is optional
+        }
+      }
+    }
+
     return data;
   },
 

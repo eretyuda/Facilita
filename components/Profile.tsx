@@ -1144,12 +1144,15 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, onOpenMyProduc
                     <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Mensagens</span>
                 </button>
 
-                <button onClick={onOpenMyProducts} className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
-                    <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Package size={20} />
-                    </div>
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Meus Produtos</span>
-                </button>
+
+                {user.isBusiness && (
+                    <button onClick={onOpenMyProducts} className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
+                        <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Package size={20} />
+                        </div>
+                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Meus Produtos</span>
+                    </button>
+                )}
             </div>
 
             {/* BUSINESS TOOLS SECTION (If Business) */}
