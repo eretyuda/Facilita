@@ -1,3 +1,4 @@
+
 import { supabase } from './supabaseClient.ts';
 import type { User, Bank, ATM, Product, Transaction, Message, Notification, Plan } from '../types';
 
@@ -18,11 +19,11 @@ export const userService = {
     return data;
   },
 
-  // Create new user
+  // Create or Update user (Upsert)
   async createUser(user: Partial<User>) {
     const { data, error } = await supabase
       .from('users')
-      .insert([{
+      .upsert([{
         id: user.id,
         name: user.name,
         email: user.email,
@@ -115,11 +116,11 @@ export const bankService = {
     return data;
   },
 
-  // Create bank/company
+  // Create or Update bank/company (Upsert)
   async createBank(bank: Partial<Bank>) {
     const { data, error } = await supabase
       .from('banks')
-      .insert([bank])
+      .upsert([bank]) // Using upsert prevents unique constraint errors
       .select()
       .single();
 
@@ -179,11 +180,11 @@ export const productService = {
     return data;
   },
 
-  // Create product
+  // Create product (Upsert to allow overwrites/fixes)
   async createProduct(product: Partial<Product>) {
     const { data, error } = await supabase
       .from('products')
-      .insert([{
+      .upsert([{
         id: product.id,
         title: product.title,
         price: product.price,
@@ -263,10 +264,9 @@ export const atmService = {
 
   // Create ATM
   async createATM(atm: Partial<ATM>) {
-    console.log('DEBUG: databaseService.createATM chamado com:', atm);
     const { data, error } = await supabase
       .from('atms')
-      .insert([{
+      .upsert([{ // Changed to upsert to be safe
         id: atm.id,
         name: atm.name,
         bank: atm.bank,
@@ -284,7 +284,6 @@ export const atmService = {
       console.error('DEBUG: Erro ao criar ATM no Supabase:', error);
       throw error;
     }
-    console.log('DEBUG: ATM salvo no Supabase:', data);
     return data;
   },
 
@@ -369,7 +368,7 @@ export const transactionService = {
   async createTransaction(transaction: Partial<Transaction>) {
     const { data, error } = await supabase
       .from('transactions')
-      .insert([{
+      .upsert([{ // Changed to upsert
         user_id: transaction.user,
         plan: transaction.plan,
         product_name: transaction.productName,
@@ -425,7 +424,7 @@ export const messageService = {
   async sendMessage(message: Partial<Message>) {
     const { data, error } = await supabase
       .from('messages')
-      .insert([{
+      .upsert([{ // Changed to upsert
         sender_id: message.senderId,
         sender_name: message.senderName,
         receiver_id: message.receiverId,

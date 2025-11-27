@@ -28,7 +28,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
     onSendMessage,
     companyPhone
 }) => {
-    const isService = product.category === 'Servico';
+    const isService = product.category === 'Serviço';
     const [activeImage, setActiveImage] = useState(product.image);
     const [showShareToast, setShowShareToast] = useState(false);
     const [showMsgModal, setShowMsgModal] = useState(false);

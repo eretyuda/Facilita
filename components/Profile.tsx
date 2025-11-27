@@ -413,7 +413,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, onOpenMyProduc
             title: `Plano ${planType}`,
             price: plan.price,
             companyName: 'Facilita Oficial',
-            category: 'Servico',
+            category: 'Serviço', // Corrected from 'Servico' to 'Serviço' to match type definition
             image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=500&q=80',
             isPromoted: false,
             description: `Subscrição mensal do plano ${planType}. Acesso a mais funcionalidades para o seu negócio.`,
@@ -466,7 +466,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, onOpenMyProduc
         if (onManageATM) {
             onManageATM('ADD', { id: crypto.randomUUID(), name: atmName || `ATM ${user.name}`, bank: user.name as any, address: atmAddress, status: atmStatus, lat: parseFloat(atmLat) || 0, lng: parseFloat(atmLng) || 0, distance: 'Calculando...', lastUpdated: 'Agora', votes: 0 });
             showToast("ATM adicionado com sucesso!");
-            if (onNavigateToMap) setTimeout(() => onNavigateToMap(), 800);
+            // REMOVED redirection to map to keep user on management page
+            // if (onNavigateToMap) setTimeout(() => onNavigateToMap(), 800); 
             setShowAddATM(false); setAtmName(''); setAtmAddress(''); setAtmStatus(ATMStatus.ONLINE); setAtmLat(''); setAtmLng('');
         }
     };
@@ -1155,7 +1156,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onLogout, onOpenMyProduc
             {/* BUSINESS TOOLS SECTION (If Business) */}
             {user.isBusiness && (
                 <div className="mb-6 animate-[fadeIn_0.3s_ease-out]">
-                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-3 ml-1">Ferramentas de Negócio</h3>
+                    <h3 className="text-sm font-bold text-gray-50 dark:text-gray-400 uppercase mb-3 ml-1">Ferramentas de Negócio</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <button onClick={() => setView('BRANCHES')} className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col items-center gap-2 hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
                             <GitBranch size={20} className="text-indigo-600 dark:text-indigo-400" />

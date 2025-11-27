@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './Button';
 import { ArrowLeft, Upload, DollarSign, Tag, FileText, Type, X, Image as ImageIcon, Plus, Zap, Loader2, GitBranch, Building2, MapPin } from 'lucide-react';
@@ -21,7 +22,7 @@ interface PublishProductProps {
 export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, branches = [], onBack, onSave, initialData, overrideOwnerId, overrideCompanyName }) => {
     const [title, setTitle] = useState('');
     const [price, setPrice] = useState('');
-    const [category, setCategory] = useState<'Produto' | 'Servico'>('Produto');
+    const [category, setCategory] = useState<'Produto' | 'Serviço'>('Produto');
     const [description, setDescription] = useState('');
     const [image, setImage] = useState('');
     const [gallery, setGallery] = useState<string[]>([]);
@@ -388,10 +389,10 @@ export const PublishProduct: React.FC<PublishProductProps> = ({ user, products, 
                             <select
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value as any)}
-                                className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-indigo-500 outline-none appearance-none text-gray-900 dark:text-white"
+                                className="w-full px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus-border-indigo-500 outline-none appearance-none text-gray-900 dark:text-white"
                             >
                                 <option value="Produto">Produto</option>
-                                <option value="Servico">Serviço</option>
+                                <option value="Serviço">Serviço</option>
                             </select>
                             <Tag size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>

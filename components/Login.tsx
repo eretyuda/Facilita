@@ -5,6 +5,7 @@ import { Eye, EyeOff, Facebook, Building2, User, Landmark, Check, FileText, Shie
 import { User as UserType, PlanType } from '../types';
 import { Toast, ToastType } from './Toast';
 import { supabase } from '../services/supabaseClient';
+import { userService } from '../services/databaseService';
 
 interface LoginProps {
   onLogin: (user: UserType) => void;
@@ -33,7 +34,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
       show: false,
       message: '',
       type: 'success'
-  });
+    });
 
   const showToast = (message: string, type: ToastType = 'success') => {
       setToast({ show: true, message, type });
@@ -133,10 +134,33 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
                     accountStatus: 'Active'
                 };
                 
-                showToast("Conta criada com sucesso!");
-                setTimeout(() => {
-                    onLogin(newUser);
-                }, 800);
+                // Try to save user to public.users table immediately via service
+                try {
+                    await userService.createUser(newUser);
+                    console.log("User saved to Supabase:", newUser);
+                    
+                    // If session is null but user is created, it implies email confirmation is needed
+                    if (!data.session) {
+                        showToast("Conta criada! Verifique o seu email para confirmar o registo antes de entrar.", 'warning');
+                    } else {
+                        showToast("Conta criada com sucesso!");
+                        setTimeout(() => {
+                            onLogin(newUser);
+                        }, 800);
+                    }
+                } catch (dbError) {
+                    console.error("Error saving user to public table:", dbError);
+                    // Still login the user locally even if DB sync fails momentarily (fallback)
+                    if (data.session) {
+                         showToast("Conta criada localmente (Sincronização pendente)");
+                         setTimeout(() => {
+                            onLogin(newUser);
+                         }, 800);
+                    } else {
+                        showToast("Conta criada! Verifique o seu email.", 'warning');
+                    }
+                }
+
             } else if (!data.session) {
                 showToast("Verifique o seu email para confirmar o registo.", 'warning');
             }
@@ -151,9 +175,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
             if (error) throw error;
 
             if (data.user) {
-                // Fetch profile data from 'profiles' table if it exists
+                // Fetch profile data from 'users' table if it exists
                 const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
+                    .from('users') // Corrected table name from 'profiles' to 'users'
                     .select('*')
                     .eq('id', data.user.id)
                     .single();
@@ -170,20 +194,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
                         isBank: profile.is_bank,
                         nif: profile.nif,
                         plan: profile.plan,
-                        isAdmin: false,
-                        profileImage: profile.avatar_url,
-                        coverImage: profile.cover_url,
+                        isAdmin: profile.is_admin || false,
+                        profileImage: profile.profile_image,
+                        coverImage: profile.cover_image,
                         address: profile.address,
                         province: profile.province,
                         municipality: profile.municipality,
                         walletBalance: profile.wallet_balance,
-                        topUpBalance: profile.top_up_balance,
-                        settings: profile.settings || { notifications: true, allowMessages: true },
+                        topUpBalance: profile.topup_balance,
+                        settings: {
+                            notifications: profile.notifications_enabled ?? true,
+                            allowMessages: profile.allow_messages ?? true
+                        },
                         accountStatus: profile.account_status || 'Active',
-                        bankDetails: profile.bank_details
+                        bankDetails: undefined // Bank details usually in separate table or jsonb, simplified for now
                     };
                 } else {
-                    // Fallback to metadata if profile table fetch fails
+                    // Fallback to metadata if user table fetch fails or user not found in 'users' table
                     const meta = data.user.user_metadata;
                     loggedUser = {
                         id: data.user.id,
@@ -200,6 +227,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
                     };
                 }
                 
+                if (loggedUser.accountStatus === 'Blocked') {
+                    showToast("Esta conta foi bloqueada. Contacte o suporte.", 'error');
+                    return;
+                }
+
                 showToast(`Bem-vindo de volta, ${loggedUser.name}!`);
                 setTimeout(() => {
                     onLogin(loggedUser);
@@ -209,8 +241,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin, existingUsers = [] }) => 
     } catch (error: any) {
         console.error("Auth Error:", error);
         let msg = "Erro na autenticação. Verifique os dados.";
-        if (error.message.includes("Invalid login credentials")) msg = "Email ou palavra-passe incorretos.";
-        if (error.message.includes("User already registered")) msg = "Este email já está registado.";
+        const errorMsgLower = (error.message || "").toLowerCase();
+        
+        if (errorMsgLower.includes("invalid login credentials")) {
+            msg = "Credenciais inválidas. Verifique o email e a palavra-passe. Se criou conta recentemente, confirme o email no seu inbox.";
+        } else if (errorMsgLower.includes("user already registered")) {
+            msg = "Este email já está registado. Tente fazer login.";
+        } else if (errorMsgLower.includes("email not confirmed")) {
+            msg = "Por favor confirme o seu email antes de entrar.";
+        } else if (errorMsgLower.includes("rate limit")) {
+            msg = "Muitas tentativas. Tente novamente mais tarde.";
+        }
+        
         showToast(msg, 'error');
     } finally {
         setIsLoading(false);

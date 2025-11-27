@@ -1,35 +1,40 @@
-import { useState, useEffect } from 'react';
-import {
-    userService,
-    productService,
-    transactionService,
-    atmService,
-    messageService,
-    favoriteService,
-    bankService
-} from '../services/databaseService';
-import { supabase } from '../services/supabaseClient.ts';
-import type { User, Product, Transaction, ATM, Message, Bank } from '../types';
 
-/**
- * Hook para sincronizar utilizadores com Supabase
- */
+import { useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
+import { 
+    userService, 
+    productService, 
+    atmService, 
+    transactionService, 
+    messageService, 
+    bankService 
+} from '../services/databaseService';
+import { User, Product, ATM, Transaction, Message, Bank } from '../types';
+
 export function useSupabaseUsers() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         loadUsers();
+        const channel = supabase
+            .channel('realtime-users')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+                loadUsers();
+            })
+            .subscribe();
+
+        return () => {
+            try { channel.unsubscribe(); } catch (e) { /* ignore */ }
+        };
     }, []);
 
     const loadUsers = async () => {
         try {
             setLoading(true);
             const data = await userService.getAllUsers();
-
-            // Convert Supabase format to User type
-            const convertedUsers: User[] = data.map(u => ({
+            // Map DB user to App User type
+            const mappedUsers: User[] = data.map(u => ({
                 id: u.id,
                 name: u.name,
                 email: u.email,
@@ -38,7 +43,7 @@ export function useSupabaseUsers() {
                 isAdmin: u.is_admin,
                 isBank: u.is_bank,
                 nif: u.nif,
-                plan: u.plan as any,
+                plan: u.plan,
                 profileImage: u.profile_image,
                 coverImage: u.cover_image,
                 address: u.address,
@@ -46,99 +51,90 @@ export function useSupabaseUsers() {
                 municipality: u.municipality,
                 walletBalance: Number(u.wallet_balance),
                 topUpBalance: Number(u.topup_balance),
-                accountStatus: u.account_status as any,
+                accountStatus: u.account_status,
                 settings: {
                     notifications: u.notifications_enabled,
                     allowMessages: u.allow_messages
                 }
             }));
-
-            setUsers(convertedUsers);
-            setError(null);
-        } catch (err: any) {
-            console.error('Error loading users:', err);
-            setError(err.message);
-            // NOTE: removed fallback to localStorage to avoid showing browser-only data.
-            // This forces the developer to fix Supabase (schema/keys) so data is persisted server-side.
+            setUsers(mappedUsers);
+        } catch (error: any) {
+            console.error('Error loading users:', error.message || JSON.stringify(error));
         } finally {
             setLoading(false);
         }
     };
 
-    const addUser = async (user: User) => {
+    const addUser = async (user: Partial<User>) => {
         try {
             await userService.createUser(user);
-            await loadUsers(); // Reload from database
-        } catch (err) {
-            console.error('Error adding user:', err);
-            // Fallback to local state
-            setUsers(prev => [...prev, user]);
-            // Do NOT persist to localStorage here: prefer failing loudly so developer runs DB schema.
-            // localStorage writes were removed to avoid data being stored only in the browser.
+            await loadUsers();
+        } catch (error: any) {
+            console.error('Error adding user:', error.message || JSON.stringify(error));
         }
     };
 
     const updateUser = async (userId: string, updates: Partial<User>) => {
         try {
             await userService.updateUser(userId, updates);
-            await loadUsers(); // Reload from database
-        } catch (err) {
-            console.error('Error updating user:', err);
-            // Fallback to local state
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
-            // Avoid persisting to localStorage on write errors; this prevents data fragmentation between browsers.
+            await loadUsers();
+        } catch (error: any) {
+            console.error('Error updating user:', error.message || JSON.stringify(error));
         }
     };
 
-    return { users, loading, error, addUser, updateUser, refreshUsers: loadUsers };
+    return { users, loading, addUser, updateUser, refreshUsers: loadUsers };
 }
 
-/**
- * Hook para sincronizar produtos com Supabase
- */
 export function useSupabaseProducts() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadProducts();
+        const channel = supabase
+            .channel('realtime-products')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+                loadProducts();
+            })
+            .subscribe();
+
+        return () => {
+            try { channel.unsubscribe(); } catch (e) { /* ignore */ }
+        };
     }, []);
 
     const loadProducts = async () => {
         try {
             setLoading(true);
             const data = await productService.getAllProducts();
-
-            const convertedProducts: Product[] = data.map(p => ({
+            const mappedProducts: Product[] = data.map(p => ({
                 id: p.id,
                 title: p.title,
                 price: Number(p.price),
                 image: p.image,
                 companyName: p.company_name,
-                category: p.category as any,
+                category: p.category,
                 isPromoted: p.is_promoted,
                 bankId: p.bank_id,
                 ownerId: p.owner_id,
                 description: p.description
             }));
-
-            setProducts(convertedProducts);
-        } catch (err) {
-            console.error('Error loading products:', err);
+            setProducts(mappedProducts);
+        } catch (error: any) {
+            console.error('Error loading products:', error.message || JSON.stringify(error));
         } finally {
             setLoading(false);
         }
     };
 
-    const addProduct = async (product: Product) => {
+    const addProduct = async (product: Partial<Product>) => {
         try {
             await productService.createProduct(product);
             await loadProducts();
-        } catch (err) {
-            console.error('Error adding product:', err);
-            // Keep local optimistic update for UX, but rethrow the error so caller knows
-            setProducts(prev => [product, ...prev]);
-            throw err;
+        } catch (error: any) {
+            console.error('Error adding product:', error.message || JSON.stringify(error));
+            throw error; // Re-throw to let caller handle (e.g. show alert)
         }
     };
 
@@ -146,9 +142,8 @@ export function useSupabaseProducts() {
         try {
             await productService.updateProduct(productId, updates);
             await loadProducts();
-        } catch (err) {
-            console.error('Error updating product:', err);
-            setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
+        } catch (error: any) {
+            console.error('Error updating product:', error.message || JSON.stringify(error));
         }
     };
 
@@ -156,24 +151,30 @@ export function useSupabaseProducts() {
         try {
             await productService.deleteProduct(productId);
             await loadProducts();
-        } catch (err) {
-            console.error('Error deleting product:', err);
-            setProducts(prev => prev.filter(p => p.id !== productId));
+        } catch (error: any) {
+            console.error('Error deleting product:', error.message || JSON.stringify(error));
         }
     };
 
     return { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts: loadProducts };
 }
 
-/**
- * Hook para sincronizar ATMs com Supabase
- */
 export function useSupabaseATMs() {
     const [atms, setAtms] = useState<ATM[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadATMs();
+        const channel = supabase
+            .channel('realtime-atms')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'atms' }, () => {
+                loadATMs();
+            })
+            .subscribe();
+
+        return () => {
+            try { channel.unsubscribe(); } catch (e) { /* ignore */ }
+        };
     }, []);
 
     const loadATMs = async () => {
@@ -195,9 +196,8 @@ export function useSupabaseATMs() {
             }));
 
             setAtms(convertedATMs);
-        } catch (err) {
-            console.error('Error loading ATMs:', err);
-            // NOTE: removed fallback to localStorage to ensure ATMs are loaded from Supabase only.
+        } catch (err: any) {
+            console.error('Error loading ATMs:', err.message || JSON.stringify(err));
         } finally {
             setLoading(false);
         }
@@ -207,22 +207,20 @@ export function useSupabaseATMs() {
         try {
             await atmService.updateATMStatus(atmId, updates.status || '');
             await loadATMs();
-        } catch (err) {
-            console.error('Error updating ATM:', err);
+        } catch (err: any) {
+            console.error('Error updating ATM:', err.message || JSON.stringify(err));
+            // Optimistic update fallback if network fails temporarily
             setAtms(prev => prev.map(a => a.id === atmId ? { ...a, ...updates } : a));
-            // Avoid persisting ATM changes to localStorage on failure.
         }
     };
 
     const addATM = async (atm: ATM) => {
         try {
-            console.log('DEBUG: Tentando adicionar ATM:', atm);
-            const result = await atmService.createATM(atm);
-            console.log('DEBUG: ATM criado com sucesso:', result);
+            await atmService.createATM(atm);
+            // Realtime subscription will trigger loadATMs, but we call it just in case
             await loadATMs();
-        } catch (err) {
-            console.error('Error adding ATM:', err);
-            console.error('DEBUG: Detalhes do erro:', JSON.stringify(err, null, 2));
+        } catch (err: any) {
+            console.error('Error adding ATM:', err.message || JSON.stringify(err));
             setAtms(prev => [atm, ...prev]);
         }
     };
@@ -231,18 +229,24 @@ export function useSupabaseATMs() {
         try {
             await atmService.deleteATM(atmId);
             await loadATMs();
-        } catch (err) {
-            console.error('Error deleting ATM:', err);
+        } catch (err: any) {
+            console.error('Error deleting ATM:', err.message || JSON.stringify(err));
             setAtms(prev => prev.filter(a => a.id !== atmId));
         }
     };
 
-    return { atms, loading, updateATM, addATM, deleteATM, refreshATMs: loadATMs };
+    const voteATM = async (userId: string, atmId: string) => {
+        try {
+            await atmService.voteATM(userId, atmId);
+            await loadATMs();
+        } catch (err: any) {
+            console.error('Error voting ATM:', err.message || JSON.stringify(err));
+        }
+    };
+
+    return { atms, loading, updateATM, addATM, deleteATM, voteATM, refreshATMs: loadATMs };
 }
 
-/**
- * Hook para sincronizar transações com Supabase
- */
 export function useSupabaseTransactions(userId?: string) {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
@@ -250,17 +254,25 @@ export function useSupabaseTransactions(userId?: string) {
     useEffect(() => {
         if (userId) {
             loadTransactions();
+            const channel = supabase
+                .channel('realtime-transactions')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, () => {
+                    loadTransactions();
+                })
+                .subscribe();
+
+            return () => {
+                try { channel.unsubscribe(); } catch (e) { /* ignore */ }
+            };
         }
     }, [userId]);
 
     const loadTransactions = async () => {
         if (!userId) return;
-
         try {
             setLoading(true);
             const data = await transactionService.getUserTransactions(userId);
-
-            const convertedTransactions: Transaction[] = data.map(t => ({
+            const mappedTransactions: Transaction[] = data.map(t => ({
                 id: t.id,
                 user: t.user_id,
                 plan: t.plan,
@@ -275,10 +287,9 @@ export function useSupabaseTransactions(userId?: string) {
                 otherPartyName: t.other_party_name,
                 proofUrl: t.proof_url
             }));
-
-            setTransactions(convertedTransactions);
-        } catch (err) {
-            console.error('Error loading transactions:', err);
+            setTransactions(mappedTransactions);
+        } catch (error: any) {
+            console.error('Error loading transactions:', error.message || JSON.stringify(error));
         } finally {
             setLoading(false);
         }
@@ -288,18 +299,14 @@ export function useSupabaseTransactions(userId?: string) {
         try {
             await transactionService.createTransaction(transaction);
             await loadTransactions();
-        } catch (err) {
-            console.error('Error adding transaction:', err);
-            setTransactions(prev => [transaction, ...prev]);
+        } catch (error: any) {
+            console.error('Error adding transaction:', error.message || JSON.stringify(error));
         }
     };
 
     return { transactions, loading, addTransaction, refreshTransactions: loadTransactions };
 }
 
-/**
- * Hook para sincronizar mensagens com Supabase
- */
 export function useSupabaseMessages(userId?: string) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
@@ -307,17 +314,28 @@ export function useSupabaseMessages(userId?: string) {
     useEffect(() => {
         if (userId) {
             loadMessages();
+            const channel = supabase
+                .channel('realtime-messages')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${userId}` }, () => {
+                    loadMessages();
+                })
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `sender_id=eq.${userId}` }, () => {
+                    loadMessages();
+                })
+                .subscribe();
+
+            return () => {
+                try { channel.unsubscribe(); } catch (e) { /* ignore */ }
+            };
         }
     }, [userId]);
 
     const loadMessages = async () => {
         if (!userId) return;
-
         try {
             setLoading(true);
             const data = await messageService.getUserMessages(userId);
-
-            const convertedMessages: Message[] = data.map(m => ({
+            const mappedMessages: Message[] = data.map(m => ({
                 id: m.id,
                 senderId: m.sender_id,
                 senderName: m.sender_name,
@@ -329,10 +347,9 @@ export function useSupabaseMessages(userId?: string) {
                 isRead: m.is_read,
                 isFromBusiness: m.is_from_business
             }));
-
-            setMessages(convertedMessages);
-        } catch (err) {
-            console.error('Error loading messages:', err);
+            setMessages(mappedMessages);
+        } catch (error: any) {
+            console.error('Error loading messages:', error.message || JSON.stringify(error));
         } finally {
             setLoading(false);
         }
@@ -342,25 +359,20 @@ export function useSupabaseMessages(userId?: string) {
         try {
             await messageService.sendMessage(message);
             await loadMessages();
-        } catch (err) {
-            console.error('Error sending message:', err);
-            setMessages(prev => [message, ...prev]);
+        } catch (error: any) {
+            console.error('Error sending message:', error.message || JSON.stringify(error));
         }
     };
 
     return { messages, loading, sendMessage, refreshMessages: loadMessages };
 }
 
-/**
- * Hook para sincronizar bancos/empresas com Supabase
- */
 export function useSupabaseBanks() {
     const [banks, setBanks] = useState<Bank[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadBanks();
-        // Subscribe to realtime changes on banks so all clients refresh automatically
         const channel = supabase
             .channel('realtime-banks')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'banks' }, () => {
@@ -377,15 +389,14 @@ export function useSupabaseBanks() {
         try {
             setLoading(true);
             const data = await bankService.getAllBanks();
-
-            const converted: Bank[] = data.map((b: any) => ({
+            const mappedBanks: Bank[] = data.map(b => ({
                 id: b.id,
                 name: b.name,
                 logo: b.logo,
                 coverImage: b.cover_image,
                 description: b.description,
-                followers: b.followers || 0,
-                reviews: b.reviews || 0,
+                followers: b.followers,
+                reviews: b.reviews,
                 phone: b.phone,
                 email: b.email,
                 nif: b.nif,
@@ -393,12 +404,12 @@ export function useSupabaseBanks() {
                 province: b.province,
                 municipality: b.municipality,
                 parentId: b.parent_id,
-                type: b.type
+                type: b.type as any,
+                isBank: b.is_bank // Added isBank mapping
             }));
-
-            setBanks(converted);
-        } catch (err) {
-            console.error('Error loading banks:', err);
+            setBanks(mappedBanks);
+        } catch (error: any) {
+            console.error('Error loading banks:', error.message || JSON.stringify(error));
         } finally {
             setLoading(false);
         }
@@ -406,8 +417,7 @@ export function useSupabaseBanks() {
 
     const addBank = async (bank: Bank) => {
         try {
-            // Map camelCase to snake_case for DB columns
-            const payload: any = {
+            const dbBank = {
                 id: bank.id,
                 name: bank.name,
                 logo: bank.logo,
@@ -422,40 +432,41 @@ export function useSupabaseBanks() {
                 province: bank.province,
                 municipality: bank.municipality,
                 parent_id: bank.parentId,
-                type: bank.type
+                type: bank.type,
+                is_bank: bank.isBank // Ensure is_bank is passed
             };
-            await bankService.createBank(payload);
+            await bankService.createBank(dbBank);
             await loadBanks();
-        } catch (err) {
-            console.error('Error adding bank:', err);
-            setBanks(prev => [bank, ...prev]);
+        } catch (error: any) {
+            // Catch RLS error and log it instead of crashing
+            console.error('Error adding bank:', error.message || JSON.stringify(error));
+            if (error.message && error.message.includes('row-level security')) {
+                console.warn("PERMISSIONS ERROR: Please run 'supabase/fix_permissions.sql' in your Supabase SQL Editor.");
+            }
         }
     };
 
     const updateBank = async (bankId: string, updates: Partial<Bank>) => {
         try {
-            // map updates to DB column names if necessary
-            const payload: any = {};
-            if ((updates as any).name) payload.name = (updates as any).name;
-            if ((updates as any).logo) payload.logo = (updates as any).logo;
-            if ((updates as any).coverImage) payload.cover_image = (updates as any).coverImage;
-            if ((updates as any).description) payload.description = (updates as any).description;
-            if ((updates as any).followers !== undefined) payload.followers = (updates as any).followers;
-            if ((updates as any).reviews !== undefined) payload.reviews = (updates as any).reviews;
-            if ((updates as any).phone) payload.phone = (updates as any).phone;
-            if ((updates as any).email) payload.email = (updates as any).email;
-            if ((updates as any).nif) payload.nif = (updates as any).nif;
-            if ((updates as any).address) payload.address = (updates as any).address;
-            if ((updates as any).province) payload.province = (updates as any).province;
-            if ((updates as any).municipality) payload.municipality = (updates as any).municipality;
-            if ((updates as any).parentId) payload.parent_id = (updates as any).parentId;
-            if ((updates as any).type) payload.type = (updates as any).type;
-
-            await bankService.updateBank(bankId, payload);
+            const dbUpdates: any = {};
+            if (updates.name) dbUpdates.name = updates.name;
+            if (updates.logo) dbUpdates.logo = updates.logo;
+            if (updates.coverImage) dbUpdates.cover_image = updates.coverImage;
+            if (updates.description) dbUpdates.description = updates.description;
+            if (updates.followers !== undefined) dbUpdates.followers = updates.followers;
+            if (updates.reviews !== undefined) dbUpdates.reviews = updates.reviews;
+            if (updates.phone) dbUpdates.phone = updates.phone;
+            if (updates.email) dbUpdates.email = updates.email;
+            if (updates.nif) dbUpdates.nif = updates.nif;
+            if (updates.address) dbUpdates.address = updates.address;
+            if (updates.province) dbUpdates.province = updates.province;
+            if (updates.municipality) dbUpdates.municipality = updates.municipality;
+            if (updates.isBank !== undefined) dbUpdates.is_bank = updates.isBank;
+            
+            await bankService.updateBank(bankId, dbUpdates);
             await loadBanks();
-        } catch (err) {
-            console.error('Error updating bank:', err);
-            setBanks(prev => prev.map(b => b.id === bankId ? { ...b, ...updates } as Bank : b));
+        } catch (error: any) {
+            console.error('Error updating bank:', error.message || JSON.stringify(error));
         }
     };
 
@@ -463,9 +474,8 @@ export function useSupabaseBanks() {
         try {
             await bankService.deleteBank(bankId);
             await loadBanks();
-        } catch (err) {
-            console.error('Error deleting bank:', err);
-            setBanks(prev => prev.filter(b => b.id !== bankId));
+        } catch (error: any) {
+            console.error('Error deleting bank:', error.message || JSON.stringify(error));
         }
     };
 

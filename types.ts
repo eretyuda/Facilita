@@ -34,6 +34,7 @@ export interface Bank {
   // Hierarchy for Branches/Affiliates
   parentId?: string; // ID of the HQ if this is a branch
   type?: 'HQ' | 'BRANCH'; // Type of entity
+  isBank?: boolean; // Optional flag to distinguish banks from companies
 }
 
 export interface ATM {
