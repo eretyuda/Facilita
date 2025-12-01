@@ -125,7 +125,7 @@ export const MapView: React.FC<MapViewProps> = ({ atms = [], banks = [], onValid
                     // Open Google Maps as fallback
                     setTimeout(() => {
                         const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${selectedATM.lat},${selectedATM.lng}`;
-                        window.open(mapsUrl, '_blank');
+                        window.location.href = mapsUrl;
                     }, 2000);
                     return;
                 }
@@ -228,7 +228,7 @@ export const MapView: React.FC<MapViewProps> = ({ atms = [], banks = [], onValid
                 if (selectedATM) {
                     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${selectedATM.lat},${selectedATM.lng}`;
                     // Longer delay for permission errors to let user read the message
-                    setTimeout(() => window.open(mapsUrl, '_blank'), isPermissionError ? 3000 : 1500);
+                    setTimeout(() => { window.location.href = mapsUrl; }, isPermissionError ? 3000 : 1500);
                 }
             },
             {
